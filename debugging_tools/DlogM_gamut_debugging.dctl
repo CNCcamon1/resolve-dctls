@@ -1,0 +1,71 @@
+//DJI DLogM ACES IDT
+#if (__RESOLVE_VER_MAJOR__ >= 17)
+DEFINE_UI_PARAMS(gain,Gain,DCTLUI_SLIDER_FLOAT,1.0f,0f,10f,0.01f)
+DEFINE_UI_PARAMS(lift,Lift,DCTLUI_SLIDER_FLOAT,0.047f,0f,0.1f,0.001f)
+DEFINE_UI_PARAMS(SrcRedx,SrcRedx,DCTLUI_SLIDER_FLOAT,.708f,-10f,10f,0.001f)
+DEFINE_UI_PARAMS(SrcRedy,SrcRedy,DCTLUI_SLIDER_FLOAT,.292f,-10f,10f,0.001f)
+DEFINE_UI_PARAMS(SrcGreenx,Srcgreenx,DCTLUI_SLIDER_FLOAT,0.17f,-10f,10f,0.001f)
+DEFINE_UI_PARAMS(SrcGreeny,SrcGreeny,DCTLUI_SLIDER_FLOAT,.797f,-10f,10f,0.001f)
+DEFINE_UI_PARAMS(SrcBluex,SrcBluex,DCTLUI_SLIDER_FLOAT,.131f,-10f,10f,0.001f)
+DEFINE_UI_PARAMS(SrcBluey,SrcBluey,DCTLUI_SLIDER_FLOAT,.046f,-10f,10f,0.001f)
+DEFINE_UI_PARAMS(SrcWhitex,SrcWhitex,DCTLUI_SLIDER_FLOAT,.3127f,-10f,10f,0.001f)
+DEFINE_UI_PARAMS(SrcWhitey,SrcWhitey,DCTLUI_SLIDER_FLOAT,.329f,-10f,10f,0.001f)
+#endif
+
+
+//0.554357f	0.31353f	 0.107868f
+//-0.112155f	 1.09355f	    0.0131806f
+//-0.00936483f	-0.0436422f	1.01963f
+
+
+//DGamutM to ACES using CAT02
+//__CONSTANT__ float DGamutMOld[3][3] = {{2.29211409f, -3.3857498, 0.90100462f},{ 0.88560479f, 5.83313425f, -1.5308102f},{ -0.23353787, -1.96306862f, 6.65521141f}};
+
+__DEVICE__ float rec_to_lin(float x) {
+	if(x < 0.168f) return (0.7535f * x);
+	else if(x < 0.44f) return (3.46013f * _powf(x,2.5704f) + .0913);
+	else if(x < 0.635f) return (4.21295f * _powf(x,3.01008f) + .15459);
+	else return (8.238f * _powf(x,5.994f) + .687f);
+}
+
+__DEVICE__ float3 transform(int p_Width, int p_Height, int p_X, int p_Y, float p_R, float p_G, float p_B) {
+	float r = rec_to_lin(gain * (p_R - lift));
+	float g = rec_to_lin(gain * (p_G - lift));
+	float b = rec_to_lin(gain * (p_B - lift));
+	
+	float xyz2rgb[3][3] = {
+		{
+		},
+		{
+		},
+		{
+		}
+	};
+	
+	float adaptedxyz[3][3] = {
+		{
+		},
+		{
+		},
+		{
+		}
+	};
+
+	float convMat[3][3] = {
+		{
+			xyz2rgb[0][0] * adaptedxyz[0][0] + xyz2rgb[0][1] * adaptedxyz[1][0] + xyz2rgb[0][2] * adaptedxyz[2][0],
+			xyz2rgb[0][0] * adaptedxyz[0][1] + xyz2rgb[0][1] * adaptedxyz[1][1] + xyz2rgb[0][2] * adaptedxyz[2][1],
+			xyz2rgb[0][0] * adaptedxyz[0][2] + xyz2rgb[0][1] * adaptedxyz[1][2] + xyz2rgb[0][2] * adaptedxyz[2][2]
+		},
+		{
+		},
+		{
+		}
+	};
+	
+	float rVal = convMat[0][0] * r + convMat[0][1] * g + convMat[0][2] * b;
+	float gVal = convMat[1][0] * r + convMat[1][1] * g + convMat[1][2] * b;
+	float bVal = convMat[2][0] * r + convMat[2][1] * g + convMat[2][2] * b;
+
+	return make_float3( rVal, gVal, bVal);
+}
